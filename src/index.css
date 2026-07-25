@@ -1,0 +1,9 @@
+/* src/index.css */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f9faf9; /* ဘရောက်ဇာ နောက်ခံကို အဖြူ/မီးခိုးဖျော့ ရောင် ပြောင်းခြင်း */
+  color: #0f172a;           /* စာလုံး မူရင်းအရောင်ကို အနက်ရောင် ပြောင်းခြင်း */
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
