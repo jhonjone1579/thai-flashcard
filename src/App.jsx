@@ -8,9 +8,9 @@ function App() {
   ]);
 
   // ၂။ Form ထဲက စာသားများ State
-  const [newThai, setNewThai] = useState("");
-  const [newRead, setNewRead] = useState("");
-  const [newEng, setNewEng] = useState("");
+  const [newEng, setNewEng] = useState(""); // မြန်မာစာ (အဓိပ္ပာယ်)
+  const [newThai, setNewThai] = useState(""); // ထိုင်းစာ
+  const [newRead, setNewRead] = useState(""); // အသံထွက်
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false); // ဘာသာပြန်နေစဉ် စောင့်ရန် State
 
@@ -21,49 +21,42 @@ function App() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // 🤖 အလိုအလျောက် ဘာသာပြန်ပေးမည့် Function (Auto-Fill)
+  // 🤖 မြန်မာစာမှ ထိုင်းစာနှင့် အသံထွက်သို့ အလိုအလျောက် ပြောင်းပေးမည့် Function
   const autoTranslate = async () => {
-    if (!newThai && !newEng) {
-      alert("ထိုင်းစာ သို့မဟုတ် မြန်မာစာ အဓိပ္ပာယ် တစ်ခုခုကို အရင်ရိုက်ထည့်ပါဗျာ။");
+    if (!newEng && !newThai) {
+      alert("ကျေးဇူးပြု၍ မြန်မာစာ အဓိပ္ပာယ်ကို ပထမအကွက်တွင် အရင်ရိုက်ထည့်ပါဗျာ။");
       return;
     }
 
     setLoading(true);
 
     try {
-      if (newThai) {
-        // ထိုင်းစာမှ မြန်မာစာ + အသံထွက်သို့ ဘာသာပြန်ခြင်း
+      if (newEng) {
+        // ၁။ မြန်မာစာမှ ထိုင်းစာသို့ ဘာသာပြန်ခြင်း
+        const responseThai = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=my&tl=th&dt=t&dt=rm&q=${encodeURIComponent(newEng)}`
+        );
+        const dataThai = await responseThai.json();
+        const translatedThai = dataThai[0]?.[0]?.[0] || "";
+        setNewThai(translatedThai);
+
+        // ၂။ ရရှိလာသော ထိုင်းစာမှ အသံထွက် (Phonetic Reading) ရယူခြင်း
+        if (translatedThai) {
+          const responsePhonetic = await fetch(
+            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=my&dt=t&dt=rm&q=${encodeURIComponent(translatedThai)}`
+          );
+          const dataPhonetic = await responsePhonetic.json();
+          const phoneticReading = dataPhonetic[0]?.[1]?.[3] || dataPhonetic[0]?.[0]?.[3] || "";
+          setNewRead(phoneticReading);
+        }
+      } else if (newThai) {
+        // ထိုင်းစာ အရင်ရိုက်ထားပါက မြန်မာစာသို့ ပြန်လှည့်ပေးခြင်း
         const response = await fetch(
           `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=my&dt=t&dt=rm&q=${encodeURIComponent(newThai)}`
         );
         const data = await response.json();
-
-        // မြန်မာဘာသာပြန် ရယူခြင်း
-        const translatedMeaning = data[0]?.[0]?.[0] || "";
-        setNewEng(translatedMeaning);
-
-        // အသံထွက် (Phonetic Reading) ရယူခြင်း
-        const phoneticReading = data[0]?.[1]?.[3] || data[0]?.[0]?.[3] || "";
-        setNewRead(phoneticReading);
-      } else if (newEng) {
-        // မြန်မာစာမှ ထိုင်းစာသို့ ဘာသာပြန်ခြင်း
-        const response = await fetch(
-          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=my&tl=th&dt=t&dt=rm&q=${encodeURIComponent(newEng)}`
-        );
-        const data = await response.json();
-
-        const translatedThai = data[0]?.[0]?.[0] || "";
-        setNewThai(translatedThai);
-
-        // ထိုင်းစာ ရရှိပါက အသံထွက်ကို ထပ်မံရယူခြင်း
-        if (translatedThai) {
-          const resThai = await fetch(
-            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=my&dt=t&dt=rm&q=${encodeURIComponent(translatedThai)}`
-          );
-          const dataThai = await resThai.json();
-          const phoneticReading = dataThai[0]?.[1]?.[3] || dataThai[0]?.[0]?.[3] || "";
-          setNewRead(phoneticReading);
-        }
+        setNewEng(data[0]?.[0]?.[0] || "");
+        setNewRead(data[0]?.[1]?.[3] || data[0]?.[0]?.[3] || "");
       }
     } catch (error) {
       alert("အလိုအလျောက် ဘာသာပြန်ရယူစဉ် အမှားအယွင်းရှိခဲ့ပါသည်။ ကိုယ်တိုင် ရိုက်ထည့်နိုင်ပါတယ်ဗျာ။");
@@ -94,23 +87,23 @@ function App() {
       setCards([...cards, newCard]);
     }
 
+    setNewEng("");
     setNewThai("");
     setNewRead("");
-    setNewEng("");
   };
 
   const startEdit = (card) => {
     setEditingId(card.id);
+    setNewEng(card.eng);
     setNewThai(card.thai);
     setNewRead(card.read);
-    setNewEng(card.eng);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
+    setNewEng("");
     setNewThai("");
     setNewRead("");
-    setNewEng("");
   };
 
   const deleteCard = (id) => {
@@ -119,15 +112,17 @@ function App() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.header}>🇹🇭 Thai Flashcards V3.0</h1>
+      <h1 style={styles.header}>🇹🇭 Thai Flashcards V3.1</h1>
 
       <form onSubmit={saveCard} style={styles.form}>
         <h3>{editingId ? "✏️ စာလုံး ပြန်ပြင်ရန်" : "➕ စာလုံးအသစ်ထည့်ရန်"}</h3>
         
+        {/* ၁။ မြန်မာစာ အရင်ရိုက်သည့် အကွက် (Primary Input) */}
+        <label style={styles.label}>၁။ မြန်မာစာ / အဓိပ္ပာယ် ရိုက်ပါ</label>
         <input 
-          placeholder="ထိုင်းစာလုံး (ဥပမာ- ขนม)" 
-          value={newThai} 
-          onChange={(e) => setNewThai(e.target.value)}
+          placeholder="ဥပမာ- ကျောင်း" 
+          value={newEng} 
+          onChange={(e) => setNewEng(e.target.value)}
           style={styles.input}
         />
 
@@ -139,20 +134,25 @@ function App() {
             disabled={loading}
             style={styles.autoBtn}
           >
-            {loading ? "⏳ ဘာသာပြန်နေသည်..." : "✨ အလိုအလျောက် ဘာသာပြန်/အသံထွက် ဖြည့်မည်"}
+            {loading ? "⏳ ထိုင်းစာနှင့် အသံထွက် ရယူနေသည်..." : "✨ ထိုင်းစာနှင့် အသံထွက် အလိုအလျောက် ဖြည့်မည်"}
           </button>
         </div>
 
+        {/* ၂။ ထိုင်းစာ အကွက် (Auto-filled) */}
+        <label style={styles.label}>၂။ ထိုင်းစာလုံး (အလိုအလျောက် ထွက်လာမည်)</label>
         <input 
-          placeholder="ထွက်သံ (ဥပမာ- Kha-nom)" 
-          value={newRead} 
-          onChange={(e) => setNewRead(e.target.value)}
+          placeholder="ဥပမာ- โรงเรียน" 
+          value={newThai} 
+          onChange={(e) => setNewThai(e.target.value)}
           style={styles.input}
         />
+
+        {/* ၃။ အသံထွက် အကွက် (Auto-filled) */}
+        <label style={styles.label}>၃။ ထွက်သံ (အလိုအလျောက် ထွက်လာမည်)</label>
         <input 
-          placeholder="အဓိပ္ပာယ်/မြန်မာစာ (ဥပမာ- မုန့်)" 
-          value={newEng} 
-          onChange={(e) => setNewEng(e.target.value)}
+          placeholder="ဥပမာ- Rong riean" 
+          value={newRead} 
+          onChange={(e) => setNewRead(e.target.value)}
           style={styles.input}
         />
 
@@ -198,8 +198,9 @@ const styles = {
     backgroundColor: '#fff', padding: '20px', borderRadius: '12px', 
     maxWidth: '500px', margin: '0 auto 30px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' 
   },
-  input: { width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' },
-  autoRow: { marginBottom: '10px' },
+  label: { fontSize: '13px', color: '#555', fontWeight: 'bold', display: 'block', marginBottom: '4px' },
+  input: { width: '100%', padding: '10px', marginBottom: '12px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' },
+  autoRow: { marginBottom: '15px' },
   autoBtn: { 
     width: '100%', padding: '10px', backgroundColor: '#6f42c1', color: '#fff', 
     border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' 
