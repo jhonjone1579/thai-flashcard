@@ -1,29 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
-  // ၁။ Default Flashcards စာရင်း
-  const [cards, setCards] = useState([
-    { id: 1, thai: "สวัสดี", read: "Sawatdee", eng: "မင်္ဂလာပါ" },
-    { id: 2, thai: "ขอบคุณ", read: "Khob khun", eng: "ကျေးဇူးတင်ပါတယ်" }
-  ]);
+  // ၁။ LocalStorage မှ အချက်အလက်များကို အရင်ဖတ်ယူမည် (မရှိပါက Default ၂ ခုပြမည်)
+  const [cards, setCards] = useState(() => {
+    const savedCards = localStorage.getItem('my_thai_flashcards');
+    if (savedCards) {
+      try {
+        return JSON.parse(savedCards);
+      } catch (e) {
+        console.error("Saved data error", e);
+      }
+    }
+    return [
+      { id: 1, thai: "สวัสดี", read: "Sawatdee", eng: "မင်္ဂလာပါ" },
+      { id: 2, thai: "ขอบคุณ", read: "Khob khun", eng: "ကျေးဇူးတင်ပါတယ်" }
+    ];
+  });
 
-  // ၂။ Form Inputs များအတွက် State
-  const [newEng, setNewEng] = useState("");   // မြန်မာစာ (အဓိပ္ပာယ်)
+  // ၂။ Cards စာရင်း ပြောင်းလဲသွားတိုင်း localstorage ထဲသို့ အလိုအလျောက် သိမ်းမည်
+  useEffect(() => {
+    localStorage.setItem('my_thai_flashcards', JSON.stringify(cards));
+  }, [cards]);
+
+  // Form Inputs များအတွက် State
+  const [newEng, setNewEng] = useState("");   // မြန်မာစာ
   const [newThai, setNewThai] = useState(""); // ထိုင်းစာ
   const [newRead, setNewRead] = useState(""); // အသံထွက်
-  const [editingId, setEditingId] = useState(null); // ပြင်ဆင်နေသည့် ID
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // 🔊 အသံထွက်ပေးမည့် Function
   const playSound = (text) => {
     if (!text) return;
-    window.speechSynthesis.cancel(); // ရှိပြီးသား အသံများကို အရင်ရပ်မည်
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'th-TH';
     window.speechSynthesis.speak(utterance);
   };
 
-  // 🤖 မြန်မာစာမှ ထိုင်းစာနှင့် အသံထွက်သို့ အလိုအလျောက် ပြောင်းပေးမည့် Function
+  // 🤖 အလိုအလျောက် ဘာသာပြန် စနစ်
   const autoTranslate = async () => {
     if (!newEng.trim()) {
       alert("ကျေးဇူးပြု၍ မြန်မာစာ အဓိပ္ပာယ်ကို ပထမအကွက်တွင် အရင်ရိုက်ထည့်ပါဗျာ။");
@@ -33,13 +48,12 @@ function App() {
     setLoading(true);
 
     try {
-      // ၁။ မြန်မာစာ -> ထိုင်းစာ ဘာသာပြန်ခြင်း
+      // မြန်မာစာ -> ထိုင်းစာ ဘာသာပြန်ခြင်း
       const resThai = await fetch(
         `https://translate.googleapis.com/translate_a/single?client=gtx&sl=my&tl=th&dt=t&q=${encodeURIComponent(newEng)}`
       );
       const dataThai = await resThai.json();
       
-      // ထိုင်းစာသီးသန့် စုစည်းထုတ်ယူခြင်း
       let fetchedThai = "";
       if (dataThai && dataThai[0]) {
         fetchedThai = dataThai[0].map(item => item[0]).join('').trim();
@@ -48,7 +62,7 @@ function App() {
       if (fetchedThai) {
         setNewThai(fetchedThai);
 
-        // ၂။ ရရှိလာသော ထိုင်းစာ -> အသံထွက် (Phonetic Romanization) ရယူခြင်း
+        // ထိုင်းစာ -> အသံထွက် (Phonetic Romanization) ရယူခြင်း
         const resRead = await fetch(
           `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=en&dt=rm&q=${encodeURIComponent(fetchedThai)}`
         );
@@ -71,7 +85,7 @@ function App() {
     }
   };
 
-  // 💾 Card သစ် သိမ်းဆည်းခြင်း သို့မဟုတ် ပြင်ဆင်ခြင်း
+  // 💾 Card သက်ဆိုင်ရာ ပြင်ဆင်/သိမ်းဆည်းခြင်း
   const saveCard = (e) => {
     e.preventDefault();
     if (!newThai.trim() || !newEng.trim()) {
@@ -80,7 +94,6 @@ function App() {
     }
 
     if (editingId !== null) {
-      // ပြင်ဆင်သည့် အဆင့် (Functional State Update သုံးထား၍ ချက်ချင်း အလုပ်လုပ်မည်)
       setCards(prevCards =>
         prevCards.map(card =>
           card.id === editingId
@@ -90,7 +103,6 @@ function App() {
       );
       setEditingId(null);
     } else {
-      // အသစ်ထည့်သည့် အဆင့်
       const newCard = {
         id: Date.now(),
         thai: newThai.trim(),
@@ -100,13 +112,11 @@ function App() {
       setCards(prevCards => [...prevCards, newCard]);
     }
 
-    // Form ကို ပြန်ရှင်းပစ်မည်
     setNewEng("");
     setNewThai("");
     setNewRead("");
   };
 
-  // ✏️ ပြင်ဆင်ရန် နှိပ်သည့်အခါ
   const startEdit = (card) => {
     setEditingId(card.id);
     setNewEng(card.eng);
@@ -114,7 +124,6 @@ function App() {
     setNewRead(card.read);
   };
 
-  // ❌ ပြင်ဆင်ခြင်း ဖျက်သိမ်းရန်
   const cancelEdit = () => {
     setEditingId(null);
     setNewEng("");
@@ -122,16 +131,14 @@ function App() {
     setNewRead("");
   };
 
-  // 🗑️ ဖျက်ရန်
   const deleteCard = (id) => {
     setCards(prevCards => prevCards.filter(card => card.id !== id));
   };
 
   return (
     <div style={styles.container} translate="no">
-      <h1 style={styles.header}> Thai Flashcards V3.2</h1>
+      <h1 style={styles.header}> Thai Flashcards V3.3</h1>
 
-      {/* --- Form Section --- */}
       <form onSubmit={saveCard} style={styles.form}>
         <h3>{editingId ? "✏️ စာလုံး ပြန်ပြင်ရန်" : "➕ စာလုံးအသစ်ထည့်ရန်"}</h3>
         
@@ -182,7 +189,6 @@ function App() {
         )}
       </form>
 
-      {/* --- Flashcard Display Section --- */}
       <div style={styles.cardGrid}>
         {cards.map((card) => (
           <div key={card.id} style={styles.card}>
