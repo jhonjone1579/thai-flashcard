@@ -1,35 +1,105 @@
 import React, { useState, useEffect } from 'react';
+import { auth, googleProvider, db } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 
 function App() {
-  // ၁။ LocalStorage မှ အချက်အလက်များကို အရင်ဖတ်ယူမည် (မရှိပါက Default ၂ ခုပြမည်)
-  const [cards, setCards] = useState(() => {
-    const savedCards = localStorage.getItem('my_thai_flashcards');
-    if (savedCards) {
-      try {
-        return JSON.parse(savedCards);
-      } catch (e) {
-        console.error("Saved data error", e);
-      }
-    }
-    return [
-      { id: 1, thai: "สวัสดี", read: "Sawatdee", eng: "မင်္ဂလာပါ" },
-      { id: 2, thai: "ขอบคุณ", read: "Khob khun", eng: "ကျေးဇူးတင်ပါတယ်" }
-    ];
-  });
+  const [user, setUser] = useState(null);
+  const [cards, setCards] = useState([]);
 
-  // ၂။ Cards စာရင်း ပြောင်းလဲသွားတိုင်း localstorage ထဲသို့ အလိုအလျောက် သိမ်းမည်
-  useEffect(() => {
-    localStorage.setItem('my_thai_flashcards', JSON.stringify(cards));
-  }, [cards]);
-
-  // Form Inputs များအတွက် State
   const [newEng, setNewEng] = useState("");   // မြန်မာစာ
   const [newThai, setNewThai] = useState(""); // ထိုင်းစာ
   const [newRead, setNewRead] = useState(""); // အသံထွက်
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 🔊 အသံထွက်ပေးမည့် Function
+  // 🔑 User Login စောင့်ကြည့်ခြင်း
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchCloudCards(currentUser.uid);
+      } else {
+        loadLocalCards();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // LocalStorage မှ Data ဖတ်ခြင်း
+  const loadLocalCards = () => {
+    const savedCards = localStorage.getItem('my_thai_flashcards');
+    if (savedCards) {
+      try {
+        setCards(JSON.parse(savedCards));
+      } catch (e) {
+        console.error("Saved data error", e);
+      }
+    } else {
+      setCards([
+        { id: 1, thai: "สวัสดี", read: "Sawatdee", eng: "မင်္ဂလာပါ" },
+        { id: 2, thai: "ขอบคุณ", read: "Khob khun", eng: "ကျေးဇူးတင်ပါတယ်" }
+      ]);
+    }
+  };
+
+  // Cloud Firestore မှ Data ဖတ်ခြင်း (မရှိသေးပါက Local Data များကို Cloud သို့ အလိုအလျောက် Upload လုပ်ပေးမည်)
+  const fetchCloudCards = async (userId) => {
+    try {
+      const q = query(collection(db, "flashcards"), where("userId", "==", userId));
+      const querySnapshot = await getDocs(q);
+      const cloudCards = querySnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+
+      // Cloud ထဲမှာ Data မရှိသေးပါက Local Card များကို Cloud သို့ Sync လုပ်ပေးမည်
+      if (cloudCards.length === 0) {
+        const savedCards = localStorage.getItem('my_thai_flashcards');
+        const defaultData = savedCards ? JSON.parse(savedCards) : [
+          { thai: "สวัสดี", read: "Sawatdee", eng: "မင်္ဂလာပါ" },
+          { thai: "ขอบคุณ", read: "Khob khun", eng: "ကျေးဇူးတင်ပါတယ်" }
+        ];
+
+        const uploadedCards = [];
+        for (const card of defaultData) {
+          const docRef = await addDoc(collection(db, "flashcards"), {
+            thai: card.thai,
+            read: card.read,
+            eng: card.eng,
+            userId: userId,
+            createdAt: Date.now()
+          });
+          uploadedCards.push({ id: docRef.id, thai: card.thai, read: card.read, eng: card.eng });
+        }
+        setCards(uploadedCards);
+      } else {
+        setCards(cloudCards);
+      }
+    } catch (error) {
+      console.error("Cloud Error:", error);
+      alert("Cloud Database သို့ ချိတ်ဆက်ရာတွင် အမှားအယွင်း ရှိနေပါသည်: " + error.message);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('my_thai_flashcards', JSON.stringify(cards));
+    }
+  }, [cards, user]);
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      alert("Login ဝင်ရတာ အဆင်မပြေပါဗျာ: " + error.message);
+    }
+  };
+
+  const handleLogout = () => {
+    signOut(auth);
+  };
+
   const playSound = (text) => {
     if (!text) return;
     window.speechSynthesis.cancel();
@@ -38,7 +108,6 @@ function App() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // 🤖 အလိုအလျောက် ဘာသာပြန် စနစ်
   const autoTranslate = async () => {
     if (!newEng.trim()) {
       alert("ကျေးဇူးပြု၍ မြန်မာစာ အဓိပ္ပာယ်ကို ပထမအကွက်တွင် အရင်ရိုက်ထည့်ပါဗျာ။");
@@ -48,7 +117,6 @@ function App() {
     setLoading(true);
 
     try {
-      // မြန်မာစာ -> ထိုင်းစာ ဘာသာပြန်ခြင်း
       const resThai = await fetch(
         `https://translate.googleapis.com/translate_a/single?client=gtx&sl=my&tl=th&dt=t&q=${encodeURIComponent(newEng)}`
       );
@@ -62,7 +130,6 @@ function App() {
       if (fetchedThai) {
         setNewThai(fetchedThai);
 
-        // ထိုင်းစာ -> အသံထွက် (Phonetic Romanization) ရယူခြင်း
         const resRead = await fetch(
           `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=en&dt=rm&q=${encodeURIComponent(fetchedThai)}`
         );
@@ -85,36 +152,54 @@ function App() {
     }
   };
 
-  // 💾 Card သက်ဆိုင်ရာ ပြင်ဆင်/သိမ်းဆည်းခြင်း
-  const saveCard = (e) => {
+  // 💾 Card သိမ်းဆည်းခြင်း / ပြင်ဆင်ခြင်း
+  const saveCard = async (e) => {
     e.preventDefault();
+    
     if (!newThai.trim() || !newEng.trim()) {
       alert("ထိုင်းစာ နှင့် မြန်မာစာ အဓိပ္ပာယ် ဖြည့်သွင်းပေးပါဗျာ။");
       return;
     }
 
-    if (editingId !== null) {
-      setCards(prevCards =>
-        prevCards.map(card =>
-          card.id === editingId
-            ? { ...card, thai: newThai.trim(), read: newRead.trim(), eng: newEng.trim() }
-            : card
-        )
-      );
-      setEditingId(null);
-    } else {
-      const newCard = {
-        id: Date.now(),
-        thai: newThai.trim(),
-        read: newRead.trim(),
-        eng: newEng.trim()
-      };
-      setCards(prevCards => [...prevCards, newCard]);
-    }
+    const cardData = {
+      thai: newThai.trim(),
+      read: newRead.trim(),
+      eng: newEng.trim()
+    };
 
-    setNewEng("");
-    setNewThai("");
-    setNewRead("");
+    try {
+      if (editingId !== null) {
+        if (user) {
+          await updateDoc(doc(db, "flashcards", editingId), cardData);
+        }
+        setCards(prevCards =>
+          prevCards.map(card =>
+            card.id === editingId ? { ...card, ...cardData } : card
+          )
+        );
+        setEditingId(null);
+      } else {
+        if (user) {
+          const docRef = await addDoc(collection(db, "flashcards"), {
+            ...cardData,
+            userId: user.uid,
+            createdAt: Date.now()
+          });
+          const newCard = { id: docRef.id, ...cardData };
+          setCards(prevCards => [...prevCards, newCard]);
+        } else {
+          const newCard = { id: Date.now(), ...cardData };
+          setCards(prevCards => [...prevCards, newCard]);
+        }
+      }
+
+      setNewEng("");
+      setNewThai("");
+      setNewRead("");
+    } catch (err) {
+      console.error("Save Error:", err);
+      alert("Cloud သို့ သိမ်းဆည်းရာတွင် အမှားတစ်ခု ရှိနေပါသည်: " + err.message);
+    }
   };
 
   const startEdit = (card) => {
@@ -131,13 +216,37 @@ function App() {
     setNewRead("");
   };
 
-  const deleteCard = (id) => {
-    setCards(prevCards => prevCards.filter(card => card.id !== id));
+  const deleteCard = async (id) => {
+    try {
+      if (user) {
+        await deleteDoc(doc(db, "flashcards", id));
+      }
+      setCards(prevCards => prevCards.filter(card => card.id !== id));
+    } catch (err) {
+      alert("Card ဖျက်ရာတွင် အမှားရှိပါသည်: " + err.message);
+    }
   };
 
   return (
     <div style={styles.container} translate="no">
       <h1 style={styles.header}> Thai Flashcards V3.3</h1>
+      <div style={styles.userBar}>
+        {user ? (
+          <div style={styles.userInfo}>
+            <span>👤 <b>{user.displayName}</b> (ရာသက်ပန်အသုံးပြုလို့ရပါပြီ)</span>
+            <button type="button" onClick={handleLogout} style={styles.logoutBtn}>
+              Logout ထွက်မည်
+            </button>
+          </div>
+        ) : (
+          <div style={styles.userInfo}>
+            <span>☁️ရာသက်ပန် အသုံးပြုရန် Login ဝင်ပါ</span>
+            <button type="button" onClick={handleGoogleLogin} style={styles.loginBtn}>
+              🔑 Google Account ဖြင့် ဝင်မည်
+            </button>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={saveCard} style={styles.form}>
         <h3>{editingId ? "✏️ စာလုံး ပြန်ပြင်ရန်" : "➕ စာလုံးအသစ်ထည့်ရန်"}</h3>
@@ -170,7 +279,7 @@ function App() {
           translate="no"
         />
 
-        <label style={styles.label}>၃။ ထွက်သံ / အသံထွက်</label>
+        <label style={styles.label}>၃။  အသံထွက်</label>
         <input 
           placeholder="ဥပမာ- Rong riean" 
           value={newRead} 
@@ -213,10 +322,16 @@ function App() {
   );
 }
 
-// ဒီဇိုင်းသတ်မှတ်ချက်များ
 const styles = {
   container: { padding: '20px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh' },
-  header: { textAlign: 'center', color: '#1a73e8' },
+  header: { textAlign: 'center', color: '#1a73e8', marginBottom: '10px' },
+  userBar: {
+    backgroundColor: '#fff', padding: '12px 20px', borderRadius: '10px',
+    maxWidth: '500px', margin: '0 auto 20px', boxShadow: '0 1px 5px rgba(0,0,0,0.08)'
+  },
+  userInfo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', fontSize: '14px' },
+  loginBtn: { padding: '8px 14px', backgroundColor: '#4285F4', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  logoutBtn: { padding: '6px 12px', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' },
   form: { 
     backgroundColor: '#fff', padding: '20px', borderRadius: '12px', 
     maxWidth: '500px', margin: '0 auto 30px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' 
