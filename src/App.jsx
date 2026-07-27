@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 
 function App() {
-  // ၁။ Flashcards စာရင်း State
+  // ၁။ Default Flashcards စာရင်း
   const [cards, setCards] = useState([
     { id: 1, thai: "สวัสดี", read: "Sawatdee", eng: "မင်္ဂလာပါ" },
     { id: 2, thai: "ขอบคุณ", read: "Khob khun", eng: "ကျေးဇူးတင်ပါတယ်" }
   ]);
 
-  // ၂။ Form ထဲက စာသားများ State
-  const [newEng, setNewEng] = useState(""); // မြန်မာစာ (အဓိပ္ပာယ်)
+  // ၂။ Form Inputs များအတွက် State
+  const [newEng, setNewEng] = useState("");   // မြန်မာစာ (အဓိပ္ပာယ်)
   const [newThai, setNewThai] = useState(""); // ထိုင်းစာ
   const [newRead, setNewRead] = useState(""); // အသံထွက်
-  const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(false); // ဘာသာပြန်နေစဉ် စောင့်ရန် State
+  const [editingId, setEditingId] = useState(null); // ပြင်ဆင်နေသည့် ID
+  const [loading, setLoading] = useState(false);
 
   // 🔊 အသံထွက်ပေးမည့် Function
   const playSound = (text) => {
+    if (!text) return;
+    window.speechSynthesis.cancel(); // ရှိပြီးသား အသံများကို အရင်ရပ်မည်
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'th-TH';
     window.speechSynthesis.speak(utterance);
@@ -23,7 +25,7 @@ function App() {
 
   // 🤖 မြန်မာစာမှ ထိုင်းစာနှင့် အသံထွက်သို့ အလိုအလျောက် ပြောင်းပေးမည့် Function
   const autoTranslate = async () => {
-    if (!newEng && !newThai) {
+    if (!newEng.trim()) {
       alert("ကျေးဇူးပြု၍ မြန်မာစာ အဓိပ္ပာယ်ကို ပထမအကွက်တွင် အရင်ရိုက်ထည့်ပါဗျာ။");
       return;
     }
@@ -31,67 +33,80 @@ function App() {
     setLoading(true);
 
     try {
-      if (newEng) {
-        // ၁။ မြန်မာစာမှ ထိုင်းစာသို့ ဘာသာပြန်ခြင်း
-        const responseThai = await fetch(
-          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=my&tl=th&dt=t&dt=rm&q=${encodeURIComponent(newEng)}`
-        );
-        const dataThai = await responseThai.json();
-        const translatedThai = dataThai[0]?.[0]?.[0] || "";
-        setNewThai(translatedThai);
+      // ၁။ မြန်မာစာ -> ထိုင်းစာ ဘာသာပြန်ခြင်း
+      const resThai = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=my&tl=th&dt=t&q=${encodeURIComponent(newEng)}`
+      );
+      const dataThai = await resThai.json();
+      
+      // ထိုင်းစာသီးသန့် စုစည်းထုတ်ယူခြင်း
+      let fetchedThai = "";
+      if (dataThai && dataThai[0]) {
+        fetchedThai = dataThai[0].map(item => item[0]).join('').trim();
+      }
 
-        // ၂။ ရရှိလာသော ထိုင်းစာမှ အသံထွက် (Phonetic Reading) ရယူခြင်း
-        if (translatedThai) {
-          const responsePhonetic = await fetch(
-            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=my&dt=t&dt=rm&q=${encodeURIComponent(translatedThai)}`
-          );
-          const dataPhonetic = await responsePhonetic.json();
-          const phoneticReading = dataPhonetic[0]?.[1]?.[3] || dataPhonetic[0]?.[0]?.[3] || "";
-          setNewRead(phoneticReading);
-        }
-      } else if (newThai) {
-        // ထိုင်းစာ အရင်ရိုက်ထားပါက မြန်မာစာသို့ ပြန်လှည့်ပေးခြင်း
-        const response = await fetch(
-          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=my&dt=t&dt=rm&q=${encodeURIComponent(newThai)}`
+      if (fetchedThai) {
+        setNewThai(fetchedThai);
+
+        // ၂။ ရရှိလာသော ထိုင်းစာ -> အသံထွက် (Phonetic Romanization) ရယူခြင်း
+        const resRead = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=en&dt=rm&q=${encodeURIComponent(fetchedThai)}`
         );
-        const data = await response.json();
-        setNewEng(data[0]?.[0]?.[0] || "");
-        setNewRead(data[0]?.[1]?.[3] || data[0]?.[0]?.[3] || "");
+        const dataRead = await resRead.json();
+        
+        let fetchedRead = "";
+        if (dataRead && dataRead[0]) {
+          for (let item of dataRead[0]) {
+            if (item && item[3]) {
+              fetchedRead += item[3] + " ";
+            }
+          }
+        }
+        setNewRead(fetchedRead.trim());
       }
     } catch (error) {
-      alert("အလိုအလျောက် ဘာသာပြန်ရယူစဉ် အမှားအယွင်းရှိခဲ့ပါသည်။ ကိုယ်တိုင် ရိုက်ထည့်နိုင်ပါတယ်ဗျာ။");
+      alert("အလိုအလျောက် ဘာသာပြန်ရယူစဉ် အမှားအယွင်းရှိခဲ့ပါသည်။ ကိုယ်တိုင် ပြင်ဆင်ရိုက်ထည့်နိုင်ပါတယ်ဗျာ။");
     } finally {
       setLoading(false);
     }
   };
 
-  // 💾 Card သိမ်းဆည်းသည့် Function
+  // 💾 Card သစ် သိမ်းဆည်းခြင်း သို့မဟုတ် ပြင်ဆင်ခြင်း
   const saveCard = (e) => {
     e.preventDefault();
-    if (!newThai || !newEng) return;
-
-    if (editingId) {
-      setCards(cards.map(card => 
-        card.id === editingId 
-          ? { ...card, thai: newThai, read: newRead, eng: newEng }
-          : card
-      ));
-      setEditingId(null);
-    } else {
-      const newCard = {
-        id: Date.now(),
-        thai: newThai,
-        read: newRead,
-        eng: newEng
-      };
-      setCards([...cards, newCard]);
+    if (!newThai.trim() || !newEng.trim()) {
+      alert("ထိုင်းစာ နှင့် မြန်မာစာ အဓိပ္ပာယ် ဖြည့်သွင်းပေးပါဗျာ။");
+      return;
     }
 
+    if (editingId !== null) {
+      // ပြင်ဆင်သည့် အဆင့် (Functional State Update သုံးထား၍ ချက်ချင်း အလုပ်လုပ်မည်)
+      setCards(prevCards =>
+        prevCards.map(card =>
+          card.id === editingId
+            ? { ...card, thai: newThai.trim(), read: newRead.trim(), eng: newEng.trim() }
+            : card
+        )
+      );
+      setEditingId(null);
+    } else {
+      // အသစ်ထည့်သည့် အဆင့်
+      const newCard = {
+        id: Date.now(),
+        thai: newThai.trim(),
+        read: newRead.trim(),
+        eng: newEng.trim()
+      };
+      setCards(prevCards => [...prevCards, newCard]);
+    }
+
+    // Form ကို ပြန်ရှင်းပစ်မည်
     setNewEng("");
     setNewThai("");
     setNewRead("");
   };
 
+  // ✏️ ပြင်ဆင်ရန် နှိပ်သည့်အခါ
   const startEdit = (card) => {
     setEditingId(card.id);
     setNewEng(card.eng);
@@ -99,6 +114,7 @@ function App() {
     setNewRead(card.read);
   };
 
+  // ❌ ပြင်ဆင်ခြင်း ဖျက်သိမ်းရန်
   const cancelEdit = () => {
     setEditingId(null);
     setNewEng("");
@@ -106,18 +122,19 @@ function App() {
     setNewRead("");
   };
 
+  // 🗑️ ဖျက်ရန်
   const deleteCard = (id) => {
-    setCards(cards.filter(card => card.id !== id));
+    setCards(prevCards => prevCards.filter(card => card.id !== id));
   };
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.header}> Thai Flashcards V3.1</h1>
+    <div style={styles.container} translate="no">
+      <h1 style={styles.header}> Thai Flashcards V3.2</h1>
 
+      {/* --- Form Section --- */}
       <form onSubmit={saveCard} style={styles.form}>
         <h3>{editingId ? "✏️ စာလုံး ပြန်ပြင်ရန်" : "➕ စာလုံးအသစ်ထည့်ရန်"}</h3>
         
-        {/* ၁။ မြန်မာစာ အရင်ရိုက်သည့် အကွက် (Primary Input) */}
         <label style={styles.label}>၁။ မြန်မာစာ / အဓိပ္ပာယ် ရိုက်ပါ</label>
         <input 
           placeholder="ဥပမာ- ကျောင်း" 
@@ -126,7 +143,6 @@ function App() {
           style={styles.input}
         />
 
-        {/* --- အလိုအလျောက် ဘာသာပြန်ပေးသည့် ခလုတ် --- */}
         <div style={styles.autoRow}>
           <button 
             type="button" 
@@ -138,17 +154,16 @@ function App() {
           </button>
         </div>
 
-        {/* ၂။ ထိုင်းစာ အကွက် (Auto-filled) */}
-        <label style={styles.label}>၂။ ထိုင်းစာလုံး (အလိုအလျောက် ထွက်လာမည်)</label>
+        <label style={styles.label}>၂။ ထိုင်းစာလုံး</label>
         <input 
           placeholder="ဥပမာ- โรงเรียน" 
           value={newThai} 
           onChange={(e) => setNewThai(e.target.value)}
           style={styles.input}
+          translate="no"
         />
 
-        {/* ၃။ အသံထွက် အကွက် (Auto-filled) */}
-        <label style={styles.label}>၃။ ထွက်သံ (အလိုအလျောက် ထွက်လာမည်)</label>
+        <label style={styles.label}>၃။ ထွက်သံ / အသံထွက်</label>
         <input 
           placeholder="ဥပမာ- Rong riean" 
           value={newRead} 
@@ -159,24 +174,26 @@ function App() {
         <button type="submit" style={editingId ? styles.updateBtn : styles.saveBtn}>
           {editingId ? "Update Card" : "Save New Card"}
         </button>
+
         {editingId && (
           <button type="button" onClick={cancelEdit} style={styles.cancelBtn}>
-            Cancel
+            Cancel (မပြင်တော့ပါ)
           </button>
         )}
       </form>
 
+      {/* --- Flashcard Display Section --- */}
       <div style={styles.cardGrid}>
         {cards.map((card) => (
           <div key={card.id} style={styles.card}>
             <div style={styles.actionRow}>
-              <button onClick={() => startEdit(card)} style={styles.iconBtn} title="ပြင်ရန်">✏️</button>
-              <button onClick={() => deleteCard(card.id)} style={styles.iconBtn} title="ဖျက်ရန်">🗑️</button>
+              <button type="button" onClick={() => startEdit(card)} style={styles.iconBtn} title="ပြင်ရန်">✏️</button>
+              <button type="button" onClick={() => deleteCard(card.id)} style={styles.iconBtn} title="ဖျက်ရန်">🗑️</button>
             </div>
 
             <div style={styles.cardTop}>
-              <h2 style={styles.thaiText}>{card.thai}</h2>
-              <button onClick={() => playSound(card.thai)} style={styles.speakerBtn} title="အသံဖွင့်ရန်">
+              <h2 style={styles.thaiText} translate="no">{card.thai}</h2>
+              <button type="button" onClick={() => playSound(card.thai)} style={styles.speakerBtn} title="အသံဖွင့်ရန်">
                 🔊
               </button>
             </div>
@@ -206,7 +223,7 @@ const styles = {
     border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' 
   },
   saveBtn: { width: '100%', padding: '10px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
-  updateBtn: { width: '100%', padding: '10px', backgroundColor: '#ffc107', color: '#000', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '5px' },
+  updateBtn: { width: '100%', padding: '10px', backgroundColor: '#ffc107', color: '#000', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '8px' },
   cancelBtn: { width: '100%', padding: '8px', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' },
   cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' },
   card: { backgroundColor: '#fff', padding: '20px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', position: 'relative' },
