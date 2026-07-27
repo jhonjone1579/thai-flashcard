@@ -75,7 +75,7 @@ function App() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.header}>🇹🇭 Thai Flashcards V2.1</h1>
+      <h1 style={styles.header}> Thai Flashcards V2.1</h1>
 
       {/* --- စာလုံးအသစ်ထည့်/ပြင်သည့် Form --- */}
       <form onSubmit={saveCard} style={styles.form}>
