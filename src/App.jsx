@@ -14,7 +14,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // 🔑 Scroll လုပ်ရန် ရည်ညွှန်းချက် (Refs) များ သတ်မှတ်ခြင်း
+  // 🔑 Element သို့ တိုက်ရိုက် ရောက်ရှိရန် Refs များ
   const formRef = useRef(null);
   const engInputRef = useRef(null);
 
@@ -208,13 +208,13 @@ function App() {
       setNewThai("");
       setNewRead("");
 
-      // 🚀 Save / Update ပြီးပါက အဆိုပါ Card ရှိရာနေရာသို့ စခရင် အလိုအလျောက် သွားပေးမည်
+      // ⚡ Save/Update ပြီးပါက လှုပ်ရှားမှု မပါဘဲ အဆိုပါ Card သို့ ချက်ချင်း လျှပ်တစ်ပြက် ပြောင်းလဲပြသမည်
       setTimeout(() => {
         const cardElement = document.getElementById(`card-${targetCardId}`);
         if (cardElement) {
-          cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cardElement.scrollIntoView({ behavior: 'auto', block: 'center' });
         }
-      }, 200);
+      }, 50);
 
     } catch (err) {
       console.error("Save Error:", err);
@@ -222,20 +222,18 @@ function App() {
     }
   };
 
-  // ✏️ စာလုံး ပြန်ပြင်ရန် ခလုတ်နှိပ်သည့်အခါ အပေါ်သို့ အလိုအလျောက် တက်သွားမည်
+  // ✏️ စာလုံး ပြန်ပြင်ရန် ခလုတ်နှိပ်သည့်အခါ
   const startEdit = (card) => {
     setEditingId(card.id);
     setNewEng(card.eng);
     setNewThai(card.thai);
     setNewRead(card.read);
 
-    // 🚀 စာရိုက်သည့် ဖောင်ဆီသို့ ငြိမ့်ငြိမ့်ညောင်းညောင်း အပေါ်သို့ တက်သွားမည်
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // ⚡ လှုပ်ရှားမှု မပါဘဲ စာရိုက်သည့် ဖောင်ဆီသို့ ချက်ချင်း လျှပ်တစ်ပြက် ပြောင်းလဲပြသမည်
+    formRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
 
-    // 🎯 ပထမဆုံး စာရိုက်ကွက် (Input) တွင် Cursor အလိုအလျောက် ဝင်သွားမည်
-    setTimeout(() => {
-      engInputRef.current?.focus();
-    }, 300);
+    // 🎯 စာရိုက်ကွက်ထဲသို့ Cursor ချက်ချင်း ထည့်ပေးမည်
+    engInputRef.current?.focus();
   };
 
   const cancelEdit = () => {
@@ -277,12 +275,10 @@ function App() {
         )}
       </div>
 
-      {/* 🚀 formRef ချိတ်ဆက်ထားသည် */}
       <form ref={formRef} onSubmit={saveCard} style={styles.form}>
         <h3>{editingId ? "✏️ စာလုံး ပြန်ပြင်ရန်" : "➕ စာလုံးအသစ်ထည့်ရန်"}</h3>
         
         <label style={styles.label}>၁။ မြန်မာစာ / အဓိပ္ပာယ် ရိုက်ပါ</label>
-        {/* 🚀 engInputRef ချိတ်ဆက်ထားသည် */}
         <input 
           ref={engInputRef}
           placeholder="ဥပမာ- ကျောင်း" 
@@ -332,7 +328,6 @@ function App() {
 
       <div style={styles.cardGrid}>
         {cards.map((card) => (
-          /* 🚀 Card တစ်ခုချင်းစီ၏ ID အလိုက် Scroll ရန် တည်နေရာ သတ်မှတ်ပေးထားသည် */
           <div key={card.id} id={`card-${card.id}`} style={styles.card}>
             <div style={styles.actionRow}>
               <button type="button" onClick={() => startEdit(card)} style={styles.iconBtn} title="ပြင်ရန်">✏️</button>
