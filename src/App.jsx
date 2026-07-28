@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore';
@@ -12,7 +12,11 @@ function App() {
   const [newRead, setNewRead] = useState(""); // အသံထွက်
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false); // 🔑 Data စတင် ဖတ်ယူပြီးစီးကြောင်း မှတ်သားရန် Flag
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 🔑 Scroll လုပ်ရန် ရည်ညွှန်းချက် (Refs) များ သတ်မှတ်ခြင်း
+  const formRef = useRef(null);
+  const engInputRef = useRef(null);
 
   // 🔑 User Login စောင့်ကြည့်ခြင်း နှင့် မူလ Data များ ဖတ်ယူခြင်း
   useEffect(() => {
@@ -23,7 +27,7 @@ function App() {
       } else {
         loadLocalCards();
       }
-      setIsLoaded(true); // 🟢 Data ဆွဲယူခြင်း ပြီးစီးသွားပြီဟု သတ်မှတ်မည်
+      setIsLoaded(true);
     });
     return () => unsubscribe();
   }, []);
@@ -45,7 +49,7 @@ function App() {
     }
   };
 
-  // Cloud Firestore မှ Data ဖတ်ခြင်း (မရှိသေးပါက Local Data များကို Cloud သို့ အလိုအလျောက် Upload လုပ်ပေးမည်)
+  // Cloud Firestore မှ Data ဖတ်ခြင်း
   const fetchCloudCards = async (userId) => {
     try {
       const q = query(collection(db, "flashcards"), where("userId", "==", userId));
@@ -55,7 +59,6 @@ function App() {
         ...docSnap.data()
       }));
 
-      // Cloud ထဲမှာ Data မရှိသေးပါက Local Card များကို Cloud သို့ Sync လုပ်ပေးမည်
       if (cloudCards.length === 0) {
         const savedCards = localStorage.getItem('my_thai_flashcards');
         const defaultData = savedCards ? JSON.parse(savedCards) : [
@@ -84,7 +87,7 @@ function App() {
     }
   };
 
-  // 💾 Guest အသုံးပြုသူများအတွက် Data ဖတ်ယူပြီးစီးမှသာ LocalStorage ထဲသို့ အမှန်တကယ် သိမ်းဆည်းမည်
+  // LocalStorage သိမ်းဆည်းခြင်း
   useEffect(() => {
     if (isLoaded && !user) {
       localStorage.setItem('my_thai_flashcards', JSON.stringify(cards));
@@ -170,8 +173,11 @@ function App() {
       eng: newEng.trim()
     };
 
+    let targetCardId = null;
+
     try {
       if (editingId !== null) {
+        targetCardId = editingId;
         if (user) {
           await updateDoc(doc(db, "flashcards", editingId), cardData);
         }
@@ -188,10 +194,12 @@ function App() {
             userId: user.uid,
             createdAt: Date.now()
           });
+          targetCardId = docRef.id;
           const newCard = { id: docRef.id, ...cardData };
           setCards(prevCards => [...prevCards, newCard]);
         } else {
-          const newCard = { id: Date.now(), ...cardData };
+          targetCardId = Date.now();
+          const newCard = { id: targetCardId, ...cardData };
           setCards(prevCards => [...prevCards, newCard]);
         }
       }
@@ -199,17 +207,35 @@ function App() {
       setNewEng("");
       setNewThai("");
       setNewRead("");
+
+      // 🚀 Save / Update ပြီးပါက အဆိုပါ Card ရှိရာနေရာသို့ စခရင် အလိုအလျောက် သွားပေးမည်
+      setTimeout(() => {
+        const cardElement = document.getElementById(`card-${targetCardId}`);
+        if (cardElement) {
+          cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
+
     } catch (err) {
       console.error("Save Error:", err);
       alert("Cloud သို့ သိမ်းဆည်းရာတွင် အမှားတစ်ခု ရှိနေပါသည်: " + err.message);
     }
   };
 
+  // ✏️ စာလုံး ပြန်ပြင်ရန် ခလုတ်နှိပ်သည့်အခါ အပေါ်သို့ အလိုအလျောက် တက်သွားမည်
   const startEdit = (card) => {
     setEditingId(card.id);
     setNewEng(card.eng);
     setNewThai(card.thai);
     setNewRead(card.read);
+
+    // 🚀 စာရိုက်သည့် ဖောင်ဆီသို့ ငြိမ့်ငြိမ့်ညောင်းညောင်း အပေါ်သို့ တက်သွားမည်
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 🎯 ပထမဆုံး စာရိုက်ကွက် (Input) တွင် Cursor အလိုအလျောက် ဝင်သွားမည်
+    setTimeout(() => {
+      engInputRef.current?.focus();
+    }, 300);
   };
 
   const cancelEdit = () => {
@@ -251,11 +277,14 @@ function App() {
         )}
       </div>
 
-      <form onSubmit={saveCard} style={styles.form}>
+      {/* 🚀 formRef ချိတ်ဆက်ထားသည် */}
+      <form ref={formRef} onSubmit={saveCard} style={styles.form}>
         <h3>{editingId ? "✏️ စာလုံး ပြန်ပြင်ရန်" : "➕ စာလုံးအသစ်ထည့်ရန်"}</h3>
         
         <label style={styles.label}>၁။ မြန်မာစာ / အဓိပ္ပာယ် ရိုက်ပါ</label>
+        {/* 🚀 engInputRef ချိတ်ဆက်ထားသည် */}
         <input 
+          ref={engInputRef}
           placeholder="ဥပမာ- ကျောင်း" 
           value={newEng} 
           onChange={(e) => setNewEng(e.target.value)}
@@ -291,7 +320,7 @@ function App() {
         />
 
         <button type="submit" style={editingId ? styles.updateBtn : styles.saveBtn}>
-          {editingId ? "Update Card" : "Save New Card"}
+          {editingId ? "Update Card (ပြင်ဆင်ချက်များ သိမ်းမည်)" : "Save New Card (အသစ်သိမ်းမည်)"}
         </button>
 
         {editingId && (
@@ -303,7 +332,8 @@ function App() {
 
       <div style={styles.cardGrid}>
         {cards.map((card) => (
-          <div key={card.id} style={styles.card}>
+          /* 🚀 Card တစ်ခုချင်းစီ၏ ID အလိုက် Scroll ရန် တည်နေရာ သတ်မှတ်ပေးထားသည် */
+          <div key={card.id} id={`card-${card.id}`} style={styles.card}>
             <div style={styles.actionRow}>
               <button type="button" onClick={() => startEdit(card)} style={styles.iconBtn} title="ပြင်ရန်">✏️</button>
               <button type="button" onClick={() => deleteCard(card.id)} style={styles.iconBtn} title="ဖျက်ရန်">🗑️</button>
