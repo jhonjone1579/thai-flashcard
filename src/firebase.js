@@ -3,12 +3,12 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyAhkkffxW1HBBh7l6e5DcoehEO2bwRTuy0",
+  authDomain: "thai-flashcards-feda1.firebaseapp.com",
+  projectId: "thai-flashcards-feda1",
+  storageBucket: "thai-flashcards-feda1.firebasestorage.app",
+  messagingSenderId: "905382151667",
+  appId: "1:905382151667:web:f23f88bb68bd2911993e86"
 };
 
 const app = initializeApp(firebaseConfig);
