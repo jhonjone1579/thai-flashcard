@@ -12,16 +12,18 @@ function App() {
   const [newRead, setNewRead] = useState(""); // အသံထွက်
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false); // 🔑 Data စတင် ဖတ်ယူပြီးစီးကြောင်း မှတ်သားရန် Flag
 
-  // 🔑 User Login စောင့်ကြည့်ခြင်း
+  // 🔑 User Login စောင့်ကြည့်ခြင်း နှင့် မူလ Data များ ဖတ်ယူခြင်း
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        fetchCloudCards(currentUser.uid);
+        await fetchCloudCards(currentUser.uid);
       } else {
         loadLocalCards();
       }
+      setIsLoaded(true); // 🟢 Data ဆွဲယူခြင်း ပြီးစီးသွားပြီဟု သတ်မှတ်မည်
     });
     return () => unsubscribe();
   }, []);
@@ -82,11 +84,12 @@ function App() {
     }
   };
 
+  // 💾 Guest အသုံးပြုသူများအတွက် Data ဖတ်ယူပြီးစီးမှသာ LocalStorage ထဲသို့ အမှန်တကယ် သိမ်းဆည်းမည်
   useEffect(() => {
-    if (!user) {
+    if (isLoaded && !user) {
       localStorage.setItem('my_thai_flashcards', JSON.stringify(cards));
     }
-  }, [cards, user]);
+  }, [cards, user, isLoaded]);
 
   const handleGoogleLogin = async () => {
     try {
