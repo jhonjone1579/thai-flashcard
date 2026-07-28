@@ -233,14 +233,14 @@ function App() {
       <div style={styles.userBar}>
         {user ? (
           <div style={styles.userInfo}>
-            <span>👤 <b>{user.displayName}</b> (ရာသက်ပန်အသုံးပြုလို့ရပါပြီ)</span>
+            <span>👤 <b>{user.displayName}</b> (အမြဲတမ်းအသုံးပြုလို့ရပါပြီ)</span>
             <button type="button" onClick={handleLogout} style={styles.logoutBtn}>
               Logout ထွက်မည်
             </button>
           </div>
         ) : (
           <div style={styles.userInfo}>
-            <span>☁️ရာသက်ပန် အသုံးပြုရန် Login ဝင်ပါ</span>
+            <span>☁️အမြဲတမ်း အသုံးပြုရန် Login ဝင်ပါ</span>
             <button type="button" onClick={handleGoogleLogin} style={styles.loginBtn}>
               🔑 Google Account ဖြင့် ဝင်မည်
             </button>
