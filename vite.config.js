@@ -1,8 +1,7 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react' // 👈 @vitejs နဲ့ plugin-react ကြားမှာ Slash (/) ဖြစ်ရပါမယ် (Dot မဟုတ်ပါ)
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/thai-flashcard/', // သင့် Repository နာမည်အတိအကျ ရှေ့/နောက် Slash ပါဝင်ရပါမည်
+  base: '/thai-flashcard/',
 })
