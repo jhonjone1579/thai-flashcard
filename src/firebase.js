@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAhkkffxW1HBBh7l6e5DcoehEO2bwRTuy0",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "thai-flashcards-feda1.firebaseapp.com",
   projectId: "thai-flashcards-feda1",
   storageBucket: "thai-flashcards-feda1.firebasestorage.app",
