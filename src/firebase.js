@@ -1,9 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  apiKey: AIzaSyDUo9l-vq2SoG7iN4nq3qjylrC7zkvv9HE,
   authDomain: "thai-flashcards-feda1.firebaseapp.com",
   projectId: "thai-flashcards-feda1",
   storageBucket: "thai-flashcards-feda1.firebasestorage.app",
@@ -13,5 +13,3 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
