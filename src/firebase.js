@@ -1,9 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
-
 const firebaseConfig = {
-  apiKey: AIzaSyDUo9l-vq2SoG7iN4nq3qjylrC7zkvv9HE,
+  apiKey: "AIzaSyDUo9l-vq2SoG7iN4nq3qjylrC7zkvv9HE", // 💡 Quotes (" ") ခံပေးထားပါသည်
   authDomain: "thai-flashcards-feda1.firebaseapp.com",
   projectId: "thai-flashcards-feda1",
   storageBucket: "thai-flashcards-feda1.firebasestorage.app",
